@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <sstream>
 #include <thread>
-/*#include "protocol.h"*/
+#include <map>
 
 using namespace std;
 
@@ -25,6 +25,7 @@ class Server {
         char buffer[255];
         char message[255];
         int n;
+        map<int, chars> table_gamers;
 
         int packet_size;
         int header_size;
@@ -35,6 +36,8 @@ class Server {
         Server(int, int, int);        
         void connection();
         void new_client_connection(int);
+        void print_gamers();
+        void broadcast(chars);
 };
 
 Server::Server(){}
@@ -76,30 +79,83 @@ Server::Server(int port, int header_size , int packet_size){
     printf("Waiting for a connection ... \n");
 }
 
+void Server::print_gamers(){
+    map<int, chars>::iterator it;
+
+    cout<<"GAMERS"<<endl;
+    cout<<"======"<<endl;
+    for(it=this->table_gamers.begin(); it!=this->table_gamers.end(); ++it)
+        cout << it->first << " => " << it->second << '\n';
+    cout<<endl<<endl;
+}
+
+void Server::broadcast(chars message){
+    map<int, chars>::iterator it;
+
+    for(it=this->table_gamers.begin(); it!=this->table_gamers.end(); ++it){
+        n = write(it->first, message, 255);
+        if (n < 0) perror("ERROR writing to socket");
+    }
+}
+
 void Server::new_client_connection(int connect_id){
+
     for(;;)
     {
     // do
     // {
-        bzero(this->buffer, 256);
+        /*bzero(this->buffer, 256);
         n = read(connect_id, this->buffer, 255);
         if (n < 0) perror("ERROR reading from socket");
         
         chars unwrapped_messa = this->protocol->unwrap(this->buffer);
-        printf("Message of client: << %s >>>\n", unwrapped_messa);
+        printf("Message of client: << %s >>>\n", unwrapped_messa);*/
 
-        chars messa = "";
+        /*cout<<"!this->table_gamers[connect_id]: "<<!this->table_gamers[connect_id]<<endl;*/
+
+        if(!this->table_gamers[connect_id]){
+            bzero(this->buffer, 256);
+            n = read(connect_id, this->buffer, 255);
+            if (n < 0) perror("ERROR reading from socket");
+            
+            chars unwrapped_messa = this->protocol->unwrap(this->buffer);
+            this->table_gamers[connect_id] = unwrapped_messa;
+            chars spe_messa = "Please insert your position to start to play (x enter y): ";
+            spe_messa = this->protocol->envelop("simple-message", spe_messa);
+            n = write(connect_id, spe_messa, 255);
+            if (n < 0) perror("ERROR writing to socket");
+        }
+        else{
+            if(strlen(buffer) > 0){
+                bzero(this->buffer, 256);
+                n = read(connect_id, this->buffer, 255);
+                if (n < 0) perror("ERROR reading from socket");
+                
+                chars unwrapped_messa = this->protocol->unwrap(this->buffer);
+                printf("Message of client: << %s >>>\n", unwrapped_messa);
+                this->broadcast(this->buffer);
+            }
+            else{
+                printf("Client desconnected !!! \n");
+                break;
+            }
+        }
+
+        this->print_gamers();
+        /*this->table_gamers[connect_id] = unwrapped_messa;*/
+
+        /*chars messa = "";
         if(strlen(buffer) > 0){
             printf("Enter message to client: ");
             scanf("%s" , this->message);
             messa = this->protocol->envelop("simple-message", this->message);
+            this->broadcast(messa);            
         }
         else {
             printf("Client desconnected !!! \n");
             break;
-        }
+        }*/
 
-        n = write(connect_id, messa, 255);
         if (n < 0) perror("ERROR writing to socket");
     }
     // } while(buffer != "chao");
@@ -119,10 +175,11 @@ void Server::connection(){
             close(this->SocketFD);
             exit(EXIT_FAILURE);
         }
-        printf("Client connected !!! \n");
 
         thread t(&Server::new_client_connection, this, ConnectFD);
         t.detach();
+
+        printf("Client connected !!! \n");
 
     }
 }

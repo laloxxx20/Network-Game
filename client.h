@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <sstream>
 #include <thread>
+#include <time.h>       /* time */
 // #include "protocol.h"
 
 using namespace std;
@@ -34,8 +35,35 @@ class Client{
         char buffer[256];
         int packet_size;
         int header_size;
+        int width = 20;
+        int height = 20;
+        chars ship;
 
         Protocol* protocol;
+
+        chars board[20][20] = {
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"},
+                            {"_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_", "_"}
+                           };
+
 
 
         Client();
@@ -48,6 +76,9 @@ class Client{
         void write_server();
         void get_list_online();
         void start_client();
+        void draw_board();
+        void draw_ship(chars, int, int);
+        void draw_ship_first(chars);
 };
 
 
@@ -103,16 +134,67 @@ Client::Client(chars ip, int port, int header, int packet)
   
 }
 
+void Client::draw_board(){
+    printf("    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9\n");
+    for(int i=0; i<this->width; i++){
+        printf("%2d| ", i);
+        for(int j=0; j<this->height; j++)
+            printf("%s ", this->board[i][j]);
+        printf("\n");
+    }
+}
+
+void Client::draw_ship(chars ship, int x, int y){
+    this->board[x][y] = ship;
+    this->board[x+1][y] = ship;
+    this->board[x][y+1] = ship;
+    this->board[x+1][y+1] = ship;
+}
+
+void Client::draw_ship_first(chars ship){
+    srand (time(NULL));
+    int x = rand() % (this->width-2) + 1;
+    int y = rand() % (this->height-2) + 1;
+    while(1){
+        if(this->board[x][y] == "_" && this->board[x+1][y] == "_" && this->board[x][y+1] == "_" && this->board[x+1][y+1] == "_")
+            break;
+        x = rand() % (this->width-2) + 1;
+        y = rand() % (this->height-2) + 1;
+    }
+    cout<<"x: "<<x<<endl;
+    cout<<"y: "<<y<<endl;
+
+    this->draw_ship(ship, x, y);
+}
 
 void Client::read_server()
 {
+    int counter = 0;
+
     for(;;)
     {
-        printf("Enter a message to server: ");
-        scanf("%s" , this->message);
-        chars messa = this->protocol->envelop("simple-message", this->message);
+        chars messa = "";
+        if(counter < 1){
+            printf("Enter a letter to play (ex A): ");
+            scanf("%s" , this->message);
+            this->ship = this->message;
+            messa = this->protocol->envelop("simple-message", this->ship);
+            this->draw_ship_first(this->ship);
+        }
+        if(counter > 1){
+            this->draw_board();
+            printf("Please insert your new position to play (x enter y): ");
+            scanf("%s" , this->message);
+            system("clear");
+        }
+        if(counter==1)
+            this->draw_board();
+
+        system("clear");
+        messa = this->protocol->envelop("simple-message", this->message);
         n = write(this->SocketFD, messa, 255);
         if (n < 0) perror("ERROR writing to socket");
+        counter++;
         
         bzero(this->buffer, 255);
         this->message_server = read(this->SocketFD, this->buffer, 255);

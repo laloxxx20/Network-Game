@@ -8,7 +8,7 @@ using namespace std;
 int main(int argc, char const *argv[])
 {
     int port = 1100;
-    char const* IP_CLIENT = "192.168.0.17";
+    char const* IP_CLIENT = "192.168.110.135";
 
     if(strcmp(argv[1], "s") == 0)
     {
